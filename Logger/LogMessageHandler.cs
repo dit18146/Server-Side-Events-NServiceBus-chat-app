@@ -21,7 +21,7 @@ namespace Logger
             log.Info($"Message Content: {message.MessageContent}");
             log.Info($"Message Channel: {message.MessageChannel}");
             log.Info($"From User Id: {message.FromUserId}");
-            Console.WriteLine();
+            
 
             return Task.CompletedTask;
         }

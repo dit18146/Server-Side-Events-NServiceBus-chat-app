@@ -26,6 +26,13 @@ public class ServerEventsServices : Service
     public IAppSettings AppSettings { get; set; }
     public IEventSubscription Subscription { get; set; }
 
+    private IMessageSession _bus;
+
+    public ServerEventsServices(IMessageSession bus)
+    {
+        _bus = bus;
+    }
+
     public async void Any(PostRawToGeneral request)
     {
         if (!IsAuthenticated && AppSettings.Get("LimitRemoteControlToAuthenticatedUsers", false))
@@ -209,17 +216,6 @@ public class ServerEventsServices : Service
 
     public async Task SendCommand(string content, string channel, string fromUserId)
     {
-        var endpointConfiguration = new EndpointConfiguration("ClientUI");
-
-        var transport = endpointConfiguration.UseTransport<LearningTransport>();
-
-        var routing = transport.Routing();
-        routing.RouteToEndpoint(typeof(LogMessage), "Logger");
-        
-
-        var endpointInstance = await Endpoint.Start(endpointConfiguration)
-            .ConfigureAwait(false);
-
         var command = new LogMessage()
         {
             MessageId = Guid.NewGuid().ToString(),
@@ -228,10 +224,7 @@ public class ServerEventsServices : Service
             FromUserId = fromUserId,
         };
 
-        await endpointInstance.Send(command)
-            .ConfigureAwait(false);
-
-        await endpointInstance.Stop()
+        await _bus.Send(command)
             .ConfigureAwait(false);
     }
     

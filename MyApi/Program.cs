@@ -1,15 +1,36 @@
-var builder = WebApplication.CreateBuilder(args);
+using Messages;
 
-var app = builder.Build();
+namespace MyApi;
 
-// Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+
+
+static class Program
 {
-    app.UseExceptionHandler("/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
-    app.UseHttpsRedirection();
-}
-app.UseServiceStack(new AppHost());
+    public static async Task Main(string[] args)
+    {
+        using var host = CreateHostBuilder(args).Build();
+        await host.StartAsync();
 
-app.Run();
+        Console.WriteLine("Press any key to shutdown");
+        Console.ReadKey();
+        await host.StopAsync();
+    }
+
+    static IHostBuilder CreateHostBuilder(string[] args) =>
+        #region ContainerConfiguration
+        Host.CreateDefaultBuilder(args)
+            .ConfigureServices(services =>
+            {
+                //services.AddSingleton<MyService>();
+            })
+            .UseNServiceBus(c =>
+            {
+                var endpointConfiguration = new EndpointConfiguration("MyApi");
+                var transport = endpointConfiguration.UseTransport<LearningTransport>();
+                var routing = transport.Routing();
+                routing.RouteToEndpoint(typeof(LogMessage), "Logger");
+                return endpointConfiguration;
+            })
+            .ConfigureWebHostDefaults(webBuilder => webBuilder.UseStartup<Startup>());
+    #endregion
+}
