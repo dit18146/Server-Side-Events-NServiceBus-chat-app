@@ -1,0 +1,1 @@
+<?xml version="1.0"?><LogMessage xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://tempuri.net/Messages"><MessageId>ac7b3c35-b040-47bb-ab13-90f86dc81070</MessageId><MessageContent></MessageContent></LogMessage>

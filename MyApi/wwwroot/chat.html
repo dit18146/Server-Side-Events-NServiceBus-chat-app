@@ -1,0 +1,383 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Page Title</title>
+</head>
+<body>
+
+    <div>
+        <button id="general" data-click="channelGeneral">
+            General
+        </button>
+
+        <button id="casino" data-click="channelCasino">
+            Casino
+        </button>
+    </div>
+
+
+    <div class="chatbox" style="width: 50%;">
+
+        <!-- Chat messages will be added dynamically here -->
+
+    </div>
+
+    <div id="bottom" style="width: 50%;">
+        <button id="btnSendPrivate">@</button>
+        <input type="text" id="txtMsg" maxlength="150" onfocus="this.value = this.value;" />
+        <button id="btnSend">Send</button>
+        <button id="btnShowEmojis" onclick="showEmojis()">Show Emojis</button>
+    </div>
+
+    <div id="emojiModal" style="display: none;">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title">Emojis</h4>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="emoji-container">
+                <span class="emoji" onclick="insertEmoji('😀')">😀</span>
+                <span class="emoji" onclick="insertEmoji('😁')">😁</span>
+                <span class="emoji" onclick="insertEmoji('😂')">😂</span>
+                <span class="emoji" onclick="insertEmoji('🤣')">🤣</span>
+                <span class="emoji" onclick="insertEmoji('😃')">😃</span>
+                <span class="emoji" onclick="insertEmoji('😄')">😄</span>
+                <span class="emoji" onclick="insertEmoji('😅')">😅</span>
+                <span class="emoji" onclick="insertEmoji('😆')">😆</span>
+                <span class="emoji" onclick="insertEmoji('😉')">😉</span>
+                <span class="emoji" onclick="insertEmoji('😊')">😊</span>
+                <span class="emoji" onclick="insertEmoji('😋')">😋</span>
+                <span class="emoji" onclick="insertEmoji('😌')">😌</span>
+                <span class="emoji" onclick="insertEmoji('😍')">😍</span>
+                <span class="emoji" onclick="insertEmoji('❤️')">❤️</span>
+                <span class="emoji" onclick="insertEmoji('👍')">👍</span>
+            </div>
+        </div>
+    </div>
+
+    <h2>Active Users</h2>
+    <ul id="status-list"></ul>
+
+</body>
+</html>
+
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/js/ss-utils.js"></script>
+<script src="/js/hot-loader.js"></script>
+
+<script>
+    var channel = "general";
+
+    var channels = ["general", "casino"];
+
+    var source = new EventSource('/event-stream?channels=' + channels + '&t=' + new Date().getTime());
+
+    var $txtMsg = $("#txtMsg").focus(), usersMap = {}, activeSub = null;
+
+    var selectedChannel = function () { return $("#channels .selected").html(); };
+
+    source.addEventListener('error', function (e) {
+        console.log("ERROR!", e);
+    }, false);
+
+    $.ss.eventReceivers = { "document": document };
+
+    const chatbox = document.querySelector(".chatbox");
+
+    var messageList = [];
+
+    $(source).handleServerEvents({
+        handlers: {
+
+            // Handler function for when the client connects to the server
+            onConnect: function (sub) {
+                activeSub = sub; // Store the active subscription
+                console.log(sub);
+
+                $.getJSON("/chathistory?channels=" + channels, function (data) {
+                    var results = data.results;
+
+                    for (var i = 0; i < results.length; i++) {
+                        var historyMessage = results[i].message;
+                        messageList.push(results[i]);
+
+                        if (results[i].channel == channel) {
+                            const message = document.createElement("p");
+                            message.textContent = historyMessage;
+                            chatbox.appendChild(message);
+                        }
+                    }
+                });
+            },
+
+            // Handler function for when a user joins the chat
+            onJoin: function () {
+                refreshUsers();
+            },
+
+            // Handler function for when a user leaves the chat
+            onLeave: function () {
+                refreshUsers();
+                console.log(userList);
+            },
+
+            // Handler function for when a new message is received
+            onMessage: function (msg, e) {
+                console.log(msg, channel);
+                const message = document.createElement("p");
+
+                if (msg.fromName != null) { // Check if the message is a chat message from receiver or sender and not from a heartbeat
+                    if (msg.channel == channel) {
+                        if (msg.message.startsWith('cmd.announce')) {
+                            message.textContent = "Admin message " + msg.message; // Messages received from admins
+                            chatbox.appendChild(message);
+                            messageList.push(message);
+                        }
+                        else {
+                            message.textContent = msg.message; // Messages received get the @fromName of the message
+                            chatbox.appendChild(message); // Append the message to the chatbox
+                            messageList.push(message);
+                        }
+                    }
+                    else {
+                        if (msg.message.startsWith('cmd.announce')) {
+                            message.textContent = "Admin message " + msg.message; // Messages received from admins
+                            chatbox.appendChild(message);
+                            messageList.push(message);
+                        }
+                    }
+                }
+            },
+            onUpdate: function () {
+                refreshUsers();
+            },
+
+            //... Register custom handlers
+        },
+        receivers: {
+            //...
+        }
+    });
+
+    $(document).bindHandlers({  //button handlers
+
+        sendCommand: function () {
+            $("#txtMsg").val($(this).text()).focus();
+        },
+        privateMsg: function () {
+            $txtMsg.val("@" + this.innerHTML + " ").focus();
+        },
+        addReceiver: function (name) {
+            $.ss.eventReceivers[name] = window[name];
+        },
+        channelGeneral: function () {
+
+            channel = "general";
+            chatbox.innerHTML = "";
+            messageList = [];
+
+            $.getJSON("/chathistory?channels=" + channels, function (data) {
+                var results = data.results;
+
+                for (var i = 0; i < results.length; i++) {
+                    var historyMessage = results[i].message;
+                    messageList.push(results[i]);
+
+                    if (results[i].channel == channel) {
+                        const message = document.createElement("p");
+                        message.textContent = historyMessage;
+                        chatbox.appendChild(message);
+                    }
+                }
+            });
+
+            for (var i = 0; i < messageList.length; i++) {
+                if (messageList[i].channel == channel) {
+
+                    const message = document.createElement("p");
+                    message.textContent = messageList[i].message;
+                    chatbox.appendChild(message);
+                }
+                if (messageList[i] == null) {
+                    const message = document.createElement("p");
+                    message.textContent = messageList[i].message;
+                    chatbox.appendChild(message);
+                }
+            }
+
+            console.log("General");
+
+        },
+        channelCasino: function () {
+
+            channel = "casino";
+            chatbox.innerHTML = "";
+            messageList = [];
+
+            $.getJSON("/chathistory?channels=" + channels, function (data) {
+                var results = data.results;
+
+                for (var i = 0; i < results.length; i++) {
+                    var historyMessage = results[i].message;
+                    messageList.push(results[i]);
+
+                    if (results[i].channel == channel) {
+                        const message = document.createElement("p");
+                        message.textContent = historyMessage;
+                        chatbox.appendChild(message);
+                    }
+                }
+            });
+
+            for (var i = 0; i < messageList.length; i++) {
+                if (messageList[i].channel == channel) {
+
+                    const message = document.createElement("p");
+                    message.textContent = messageList[i].message;
+                    chatbox.appendChild(message);
+                }
+                if (messageList[i] == null) {
+                    const message = document.createElement("p");
+                    message.textContent = messageList[i].message;
+                    chatbox.appendChild(message);
+                }
+            }
+
+            console.log("Casino");
+        },
+    });
+
+    var userList = [];
+
+    function refreshUsers() {
+
+        userList = [];
+        $.getJSON("/event-subscribers?channels=" + channels, function (users) { //get subs from service stack url and push them to list
+            users.forEach(function (user) {
+
+                var existingUser = userList.find(function (u) {
+                    return u.userId === user.userId;
+                });
+
+                if (!existingUser) {
+                    userList.push({
+                        channels: user.channels,
+                        createdAt: user.createdAt,
+                        displayName: user.displayName,
+                        isAuthenticated: user.isAuthenticated,
+                        profileUrl: user.profileUrl,
+                        userId: user.userId
+                    });
+                }
+            });
+        });
+        console.log(userList);
+    }
+
+    function postMsg() {
+
+        var msg = $txtMsg.val(), parts, to = null;
+
+        if (msg[0] == "@") {
+
+            isUserPrivate = true;
+
+            parts = $.ss.splitOnFirst(msg, " ");
+            var toName = parts[0].substring(1);
+
+            if (toName == "me") {
+                to = activeSub.userId;
+
+            } else {
+
+                var userExists = false;
+
+                // Loop through all users in the list and check if displayName matches
+                for (var i = 0; i < userList.length; i++) {
+                    var user = userList[i];
+
+                    if (user.displayName.replace(" ", "").toLowerCase() === toName.toLowerCase()) {
+                        // If displayName matches, set the 'to' variable to the user's userId
+                        to = user.userId;
+                        userExists = true;
+                        break;
+                    }
+                }
+
+                if (!userExists) {
+                    // If no user with matching displayName is found, set 'to' to null
+                    to = null;
+                }
+
+                msg = parts[1];
+            }
+        }
+
+        if (!msg || !activeSub) return;
+
+        var onError = function (e) {
+
+            const message = document.createElement("p"); // Create a new <p> element
+            message.textContent = "An error occured"; // Set the text content of the message
+            console.log("Failure status code: " + e.status);
+            chatbox.appendChild(message);
+        };
+
+        if (msg[0] == "/") {
+            parts = $.ss.splitOnFirst(msg, " ");
+
+            $.post("/channels/" + channel + "/raw", { from: activeSub.id, toUserId: to, message: "Admin: " + parts[1], selector: + parts[0].substring(1) }, function () { }).fail(onError);
+        } else {
+            $.post("/channels/" + channel + "/chat", { from: activeSub.id, toUserId: to, channel: channel, message: "@" + activeSub.displayName + ": " + msg, selector: "cmd.chat" }, function () { }).fail(onError);
+        }
+
+        $txtMsg.val("");
+    }
+
+    $("#btnSend").click(postMsg);
+
+    /// interface event below
+
+    $(document).ready(function () { //private message button event handlers
+        $('#btnSendPrivate').click(function () {
+            $('#txtMsg').val(function (_, val) {
+                return val + '@';
+            }).focus();
+        });
+    });
+
+    function showEmojis() {
+        const modal = document.getElementById("emojiModal");
+        modal.style.display = "block";
+    }
+
+    function insertEmoji(emoji) {
+        const inputField = document.getElementById("txtMsg");
+        inputField.value += emoji;
+
+        const modal = document.getElementById("emojiModal");
+        modal.style.display = "none";
+    }
+
+    const statusList = document.querySelector('#status-list');
+
+    function updateStatusList() {
+        // Clear existing list items
+        statusList.innerHTML = '';
+
+        // Create new list items for each user
+        userList.forEach((user) => {
+            const listItem = document.createElement('li');
+            listItem.textContent = user.displayName + ' is active';
+            statusList.appendChild(listItem);
+        });
+    }
+
+    setInterval(() => {
+        // Check for changes to the userList data
+        // If there are changes, call the updateStatusList function
+        updateStatusList();
+    }, 10);
+</script>
