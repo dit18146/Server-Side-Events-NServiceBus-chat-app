@@ -15,6 +15,10 @@ using ServiceStack.Messaging;
 using NServiceBus;
 using NServiceBus.Logging;
 using Endpoint = NServiceBus.Endpoint;
+using ServiceStack.Web;
+using System.Net.Http;
+using System.Threading.Channels;
+using static System.Net.WebRequestMethods;
 
 namespace MyApi.ServiceInterface;
 
@@ -59,12 +63,13 @@ public class ServerEventsServices : Service
             await ServerEvents.NotifyAllAsync(request.Selector, request.Message).ConfigureAwait(false);
 
             //Notify NServiceBus
-            await  SendCommand(request.Message, request.Channel, request.From).ConfigureAwait(false);
+            await  SendCommand(request.Message, request.Channel, request.Selector,request.From).ConfigureAwait(false);
         }
     }
 
     public object Any(PostChatToGeneral request)
     {
+        Console.WriteLine("innnnnnnnnnn");
         // Ensure the subscription sending this notification is still active
         var sub = ServerEvents.GetSubscriptionInfo(request.From);
         if (sub == null)
@@ -109,7 +114,7 @@ public class ServerEventsServices : Service
                 ServerEvents.NotifyChannel(request.Channel, request.Selector, msg);
 
                 //Notify NServiceBus
-                SendCommand(request.Message, request.Channel, request.From).ConfigureAwait(false);
+                SendCommand(request.Message, request.Channel, request.Selector,request.From).ConfigureAwait(false);
             }
 
             if (!msg.Private)
@@ -148,7 +153,7 @@ public class ServerEventsServices : Service
             await ServerEvents.NotifyChannelAsync(request.Channel, request.Selector, request.Message).ConfigureAwait(false);
 
             //Notify NServiceBus
-            await  SendCommand(request.Message, request.Channel, request.From).ConfigureAwait(false);
+            await  SendCommand(request.Message, request.Channel, request.Selector,request.From).ConfigureAwait(false);
         }
     }
 
@@ -198,7 +203,7 @@ public class ServerEventsServices : Service
                 ServerEvents.NotifyChannel(request.Channel, request.Selector, msg);
 
                 //Notify NServiceBus
-                SendCommand(request.Message, request.Channel, request.From).ConfigureAwait(false);
+                SendCommand(request.Message, request.Channel, request.Selector,request.From).ConfigureAwait(false);
             }
 
             if (!msg.Private)
@@ -214,22 +219,20 @@ public class ServerEventsServices : Service
         }
     }
 
-    public async Task SendCommand(string content, string channel, string fromUserId)
+    public async Task SendCommand(string content, string channel, string selector, string fromUserId)
     {
         var command = new LogMessage()
         {
-            MessageId = Guid.NewGuid().ToString(),
+            MessageId = fromUserId,
             MessageContent = content,
             MessageChannel = channel,
+            MessageSelector = selector,
             FromUserId = fromUserId,
         };
 
         await _bus.Send(command)
             .ConfigureAwait(false);
     }
-    
-
-
 
     //public object Any(GetSubscriptions request)
     //{
@@ -308,3 +311,28 @@ public class MemoryChatHistory : IChatHistory
         MessagesMap = new Dictionary<string, List<ChatMessage>>();
     }
 }
+
+public class MessageAnouncedHandler : IHandleMessages<MessageAnounced>
+{
+    
+
+    public async Task Handle(MessageAnounced message, IMessageHandlerContext context)
+    {
+        var baseUri = "https://localhost:5001";
+        var channel = "general";
+
+        var client = new ServerEventsClient(baseUri, channel);
+
+        // Send a Web Service Request using the built-in JsonServiceClient
+        client.ServiceClient.Post(new PostChatToGeneral()
+        {
+            Channel = message.MessageChannel,     // The channel we're listening on
+            From = message.FromUserId, // Populated after Connect() 
+            Message = message.MessageContent,
+            Selector = message.MessageSelector
+        });
+
+
+    }
+}
+

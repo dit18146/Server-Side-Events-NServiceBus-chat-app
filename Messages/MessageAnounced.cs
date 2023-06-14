@@ -1,11 +1,13 @@
-﻿using System.Windows.Input;
-using ICommand = NServiceBus.ICommand;
-
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Messages
 {
-    public class LogMessage :
-        ICommand
+    public class MessageAnounced :
+        IEvent
     {
         public string MessageId { get; set; } = string.Empty;
 
@@ -16,7 +18,5 @@ namespace Messages
         public string MessageSelector { get; set; } = string.Empty;
 
         public string FromUserId { get; set;} = string.Empty;
-
-        public bool IsAlreadySent { get; set; }
     }
 }

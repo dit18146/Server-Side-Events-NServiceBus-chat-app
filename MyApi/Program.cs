@@ -21,7 +21,7 @@ static class Program
         Host.CreateDefaultBuilder(args)
             .ConfigureServices(services =>
             {
-                //services.AddSingleton<MyService>();
+                //services.AddScoped<IServerEvents, MemoryServerEvents>();
             })
             .UseNServiceBus(c =>
             {
