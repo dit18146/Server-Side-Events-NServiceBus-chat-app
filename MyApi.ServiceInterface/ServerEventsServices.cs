@@ -321,16 +321,27 @@ public class MessageAnouncedHandler : IHandleMessages<MessageAnounced>
         var baseUri = "https://localhost:5001";
         var channel = "general";
 
-        var client = new ServerEventsClient(baseUri, channel);
+        //var client = new ServerEventsClient(baseUri, channel);
+
+        //// Send a Web Service Request using the built-in JsonServiceClient
+        //client.ServiceClient.Post(new PostChatToGeneral()
+        //{
+        //    Channel = message.MessageChannel,     // The channel we're listening on
+        //    From = message.FromUserId, 
+        //    Message = message.MessageContent,
+        //    Selector = message.MessageSelector
+        //});
+
+        var client = new JsonApiClient(baseUri);
 
         // Send a Web Service Request using the built-in JsonServiceClient
-        client.ServiceClient.Post(new PostChatToGeneral()
+        await client.PostAsync(new PostChatToGeneral()
         {
             Channel = message.MessageChannel,     // The channel we're listening on
-            From = message.FromUserId, // Populated after Connect() 
+            From = message.FromUserId, 
             Message = message.MessageContent,
             Selector = message.MessageSelector
-        });
+        }).ConfigureAwait(false);
 
 
     }
